@@ -1,0 +1,4 @@
+interface:
+  display_name: "Researcher"
+  short_description: "Durable cited research runs"
+  default_prompt: "Use $researcher with Agent Contract v1: create durable work through POST /v1/runs, return the live run URL immediately, and review the finished report against the user's prompt."
