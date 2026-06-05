@@ -96,6 +96,7 @@ curl -fsS -X POST "$RESEARCHER_BASE_URL/v1/runs" \
 RUN_ID="..."
 
 curl -fsS "$RESEARCHER_BASE_URL/v1/runs/$RUN_ID/job" -H "$RESEARCHER_AUTH_HEADER"
+curl -N "$RESEARCHER_BASE_URL/v1/runs/$RUN_ID/stream" -H "$RESEARCHER_AUTH_HEADER"
 curl -fsS "$RESEARCHER_BASE_URL/v1/runs/$RUN_ID/results" -H "$RESEARCHER_AUTH_HEADER"
 curl -fsS "$RESEARCHER_BASE_URL/v1/runs/$RUN_ID/markdown" -H "$RESEARCHER_AUTH_HEADER"
 curl -fsS "$RESEARCHER_BASE_URL/v1/runs/$RUN_ID/sources" -H "$RESEARCHER_AUTH_HEADER"
@@ -103,6 +104,30 @@ curl -fsS "$RESEARCHER_BASE_URL/v1/runs/$RUN_ID/extractions" -H "$RESEARCHER_AUT
 curl -fsS "$RESEARCHER_BASE_URL/v1/runs/$RUN_ID/transcript" -H "$RESEARCHER_AUTH_HEADER"
 curl -fsS "$RESEARCHER_BASE_URL/v1/runs/$RUN_ID/usage" -H "$RESEARCHER_AUTH_HEADER"
 ```
+
+Treat `succeeded`, `failed`, and `cancelled` as terminal statuses. Remove terminal runs from queued or in-flight lists immediately. For failed or cancelled runs, surface status, error, watch URL, and usage instead of waiting for a report.
+
+## Completion Webhooks
+
+For unattended or multi-run agents, register an account-scoped terminal webhook before starting work:
+
+```bash
+curl -fsS -X POST "$RESEARCHER_BASE_URL/v1/webhooks" \
+  -H "$RESEARCHER_AUTH_HEADER" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event": "run.complete",
+    "url": "https://example.com/researcher-webhook",
+    "secret": "at-least-8-chars"
+  }'
+```
+
+```bash
+curl -fsS "$RESEARCHER_BASE_URL/v1/webhooks" -H "$RESEARCHER_AUTH_HEADER"
+curl -fsS -X DELETE "$RESEARCHER_BASE_URL/v1/webhooks/$WEBHOOK_ID" -H "$RESEARCHER_AUTH_HEADER"
+```
+
+`run.complete` subscriptions receive terminal deliveries for succeeded, failed, and cancelled runs. The `x-researcher-event` header and payload event identify the actual terminal event, such as `run.succeeded` or `run.failed`. When a secret is configured, verify `x-researcher-signature`: `sha256=` plus HMAC-SHA256 of the raw JSON body.
 
 ## Chat With A Run
 

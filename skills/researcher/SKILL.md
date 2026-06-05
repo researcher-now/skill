@@ -41,6 +41,7 @@ Think in five verbs:
 - Use `GET /v1/me` to confirm whether the bearer token is a customer or admin token before spending.
 - Use `GET /v1/runs`, `/v1/library`, or `/v1/library/recall?q=*` to enumerate existing runs and recall.
 - Use `GET /v1/runs/:id/job` for live run state. Read top-level `status`, `currentStage`, `currentActivity`, and `state`; legacy `job.status` remains nested under `job`.
+- Use `POST /v1/webhooks` with `event:"run.complete"` before starting unattended or multi-run work. If no webhook receiver is available, stream or poll until `succeeded`, `failed`, or `cancelled`.
 - Use `GET /v1/runs/:id/results` or `/markdown` to read a completed run.
 - Use `GET /v1/runs/:id/transcript` for typed video transcript segments instead of raw transcript metadata blobs.
 - Use `POST /v1/runs/:id/sources/:sourceId/redo` when a source extracted weakly and the run can be salvaged without forking.
@@ -48,15 +49,16 @@ Think in five verbs:
 - Use `POST /v1/runs/:id/chat` for questions scoped to one completed run, or the `/chat/sessions` endpoints for multi-turn UI flows.
 - Use `POST /v1/runs/:id/iterate` as the canonical iteration wrapper for start, pause, continue, deepen, focus, steer, report, fork, evaluate, cancel, and stop. Include `Idempotency-Key` on paid iterate calls.
 - Use `POST /v1/runs/:id/iterate` with `action:"cancel"` or `action:"stop"` to abort active work.
-- Use `/tags`, `/collections`, `/diff`, `/export`, and `/webhooks` when organizing runs, comparing continuations, or sending completed runs to downstream systems.
+- Use `/tags`, `/collections`, `/diff`, `/export`, and `/webhooks` when organizing runs, comparing continuations, or sending terminal runs to downstream systems.
 
 ## Run Workflow
 
 1. Convert the user's ask into a precise research prompt. Preserve requested output shape, required sources, time horizon, evaluation criteria, and exclusions.
 2. Create the run and return the watch URL as soon as the API returns it. Do not wait for completion before sharing the link.
-3. Track status through the watch URL, stream endpoint, or polling endpoint when the user wants updates.
-4. On completion, fetch results, markdown, sources, extractions, and usage/cost if the user needs the final artifact or an audit.
-5. For quality-sensitive work, review the report against the original prompt. Continue, deepen, focus, or fork instead of declaring success when prompt requirements are missing.
+3. For unattended or multi-run work, register an account-scoped `run.complete` webhook or keep polling/streaming until the run reaches `succeeded`, `failed`, or `cancelled`.
+4. Remove terminal runs from queued or in-flight lists immediately. For failed/cancelled runs, surface the status, error, watch URL, and usage instead of waiting for a report.
+5. For succeeded runs, fetch results, markdown, sources, extractions, and usage/cost if the user needs the final artifact or an audit.
+6. For quality-sensitive work, review the report against the original prompt. Continue, deepen, focus, or fork instead of declaring success when prompt requirements are missing.
 
 ## Prompt Contract
 
@@ -72,7 +74,7 @@ For research runs, include these fields in the prompt whenever they are known:
 
 - Use `maxCostUsd` as a cap when the user gives a budget. A budget is a ceiling, not a target spend.
 - If the API returns `402` or wallet/payment authorization errors, use `account_funding_url` from the response when present. Otherwise send the user to `https://researcher.now/account/`.
-- If a stage fails, surface the run URL and the useful error message. Do not replace a failed Researcher run with a generic web-search summary.
+- If a stage fails, treat the run as terminal, surface the run URL and the useful error message, and remove it from queued/in-flight state. Do not replace a failed Researcher run with a generic web-search summary.
 - If the run has weak evidence or misses prompt requirements, use continuation or forked follow-up work rather than pretending the output is complete.
 
 ## Output Style
@@ -110,7 +112,7 @@ When saving a completed run to another knowledge store, fetch:
 
 For YouTube/video runs, avoid sending `metadata.raw.content` transcript fragment blobs into downstream LLM calls. Prefer the report, source records, `/transcript`, or transcript tab data.
 
-Use `POST /v1/runs/:id/export` for webhook-shaped one-off export, or register completion webhooks with `POST /v1/webhooks`.
+Use `POST /v1/runs/:id/export` for webhook-shaped one-off export, or register account completion webhooks with `POST /v1/webhooks`. `run.complete` subscriptions receive succeeded, failed, and cancelled terminal deliveries; verify `x-researcher-signature` when a secret is configured.
 
 ## Recipes
 
