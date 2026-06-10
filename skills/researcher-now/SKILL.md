@@ -1,12 +1,12 @@
 ---
-name: researcher
+name: researcher-now
 description: |
-  Create and operate durable, source-backed Researcher runs. Use when a user wants cited research, a live watch URL, reusable source records, YouTube/video transcript extraction, website/domain extraction, run continuation, forked report versions, or run-scoped Q&A over a completed Researcher run.
+  Article, video, and deep research analysis via researcher.now. Use when the user says: summarize this YouTube video, extract this article, YouTube transcript, research X, find sources on Y, what does this video say. Single URLs return formatted content PLUS finished structured analysis (claims, facts, quotes) in seconds for cents; deep research returns a cited, synthesized Research Report with reusable source records, a live watch URL, and run-scoped Q&A.
 license: MIT
 metadata:
   author: Researcher
   homepage: https://researcher.now
-  source: https://github.com/j-s/researcher-skill
+  source: https://github.com/researcher-now/skill
 ---
 
 # Researcher
@@ -34,6 +34,7 @@ Think in five verbs:
 
 ## Choose The Operation
 
+- Use `POST /v1/analyze` with `{ "url": ... }` for a SINGLE article or YouTube video when the user wants it read/summarized/analyzed now: synchronous (seconds), costs cents, returns formatted markdown or a speaker-aware transcript PLUS the structured analysis (claims, facts, quantitative data, quotes). Prefer this over a run for one-URL asks — only start a run for multi-source synthesis or a durable Research Report.
 - Use `POST /v1/runs` with `preflightPlan:true` before spending when the customer prompt is vague, high-stakes, or needs an explicit success checklist.
 - Use `POST /v1/runs` for all new durable work. Pick `source.type` as `topic`, `url`, `feed`, or `video`; include `requestedBy` and an `Idempotency-Key`.
 - Use `source.type:"video"` for a YouTube URL, podcast/video link, or transcript-first task. Do not scrape video as a generic webpage.

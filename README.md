@@ -10,7 +10,7 @@ not create credentials.
 Install:
 
 ```bash
-npx skills add j-s/researcher-skill --skill researcher
+npx skills add researcher-now/skill --skill researcher
 ```
 
 Then set a customer API key from https://researcher.now/account/?setup=agent:
