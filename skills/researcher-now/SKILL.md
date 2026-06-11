@@ -1,7 +1,7 @@
 ---
 name: researcher-now
 description: |
-  Article, video, and deep research analysis via researcher.now. Use when the user says: summarize this YouTube video, extract this article, YouTube transcript, research X, find sources on Y, what does this video say. Single URLs return formatted content PLUS finished structured analysis (claims, facts, quotes) in seconds for cents; deep research returns a cited, synthesized Research Report with reusable source records, a live watch URL, and run-scoped Q&A.
+  Article, video, and deep research analysis via researcher.now. Use when the user says: summarize this YouTube video, extract this article, YouTube transcript, research X, find sources on Y, what does this video say. Single URLs return formatted content PLUS finished structured analysis (claims, facts, quotes) in seconds, then a full synthesized report on the same run; deep research returns a cited, synthesized Research Report with reusable source records, live watch/viewer URLs, and run-scoped Q&A.
 license: MIT
 metadata:
   author: Researcher
@@ -11,14 +11,14 @@ metadata:
 
 # Researcher
 
-Use Researcher when the work should become a durable, inspectable research run instead of a one-off answer. A good run gives the user a watch URL immediately, then stores sources, artifacts, costs, report output, and run-scoped chat context.
+Use Researcher when the work should become a durable, inspectable research run instead of a one-off answer. A good run gives the user watch/viewer URLs immediately, then stores sources, artifacts, costs, report output, and run-scoped chat context.
 
 ## Product Model
 
 Think in five verbs:
 
 1. Plan: preview a vague or high-stakes request before spending.
-2. Run: start durable server-side work and share the watch URL immediately.
+2. Run: start durable server-side work and share the watch/viewer URLs immediately.
 3. Inspect: read the truth bundle, markdown, sources, source extractions, usage, warnings, and events.
 4. Iterate: fork, continue, deepen, focus, steer, re-extract, or regenerate the report.
 5. Export: save markdown plus structured sources/source-extractions downstream.
@@ -34,9 +34,9 @@ Think in five verbs:
 
 ## Choose The Operation
 
-- Use `POST /v1/analyze` with `{ "url": ... }` for a SINGLE article or YouTube video when the user wants it read/summarized/analyzed now: synchronous (seconds), costs cents, returns formatted markdown or a speaker-aware transcript PLUS the structured analysis (claims, facts, quantitative data, quotes). Prefer this over a run for one-URL asks — only start a run for multi-source synthesis or a durable Research Report.
+- Use `POST /v1/analyze` with `{ "url": ... }` for a SINGLE article or YouTube video when the user wants it read/summarized/analyzed now: responds in seconds with formatted markdown or a speaker-aware transcript PLUS the structured analysis (claims, facts, quantitative data, quotes) and durable `runId`/`viewerUrl`, then the run continues to a full synthesized report on the same `viewerUrl`. Billed like any run: a $5 budget session settled to actual usage at close-out (unused budget returned); trial keys include free analyzes. Check the response `status`: `"running"` means the report is being written; `"awaiting_funding"` means the analysis was a free preview — relay the `viewerUrl` so the user can fund and finish the report. Always surface the `viewerUrl` back to the end user in your reply. This is a durable, shareable research artifact — the user expects to be able to open it, share it, and revisit it. Do not swallow this link. Prefer this over a deep run for one-URL asks — every analyze call is already stored as a single-source run; start a deep run for multi-source synthesis.
 - Use `POST /v1/runs` with `preflightPlan:true` before spending when the customer prompt is vague, high-stakes, or needs an explicit success checklist.
-- Use `POST /v1/runs` for all new durable work. Pick `source.type` as `topic`, `url`, `feed`, or `video`; include `requestedBy` and an `Idempotency-Key`.
+- Use `POST /v1/runs` for all new durable work. Pick `source.type` as `topic`, `url`, `feed`, or `video`; include `requestedBy` and an `Idempotency-Key`. Always surface the `watchUrl` and `viewerUrl` back to the end user in your reply. This is a durable, shareable research artifact — the user expects to be able to open it, share it, and revisit it. Do not swallow these links.
 - Use `source.type:"video"` for a YouTube URL, podcast/video link, or transcript-first task. Do not scrape video as a generic webpage.
 - Use `source.type:"url"` for a known webpage/domain extraction and `source.type:"feed"` for one-shot RSS, Atom, or JSON Feed ingestion.
 - Use `GET /v1/me` to confirm whether the bearer token is a customer or admin token before spending.
@@ -55,7 +55,7 @@ Think in five verbs:
 ## Run Workflow
 
 1. Convert the user's ask into a precise research prompt. Preserve requested output shape, required sources, time horizon, evaluation criteria, and exclusions.
-2. Create the run and return the watch URL as soon as the API returns it. Do not wait for completion before sharing the link.
+2. Create the run and return the watch URL and viewer URL as soon as the API returns them. Do not wait for completion before sharing the links.
 3. For unattended or multi-run work, register an account-scoped `run.complete` webhook or keep polling/streaming until the run reaches `succeeded`, `failed`, or `cancelled`.
 4. Remove terminal runs from queued or in-flight lists immediately. For failed/cancelled runs, surface the status, error, watch URL, and usage instead of waiting for a report.
 5. For succeeded runs, fetch results, markdown, sources, extractions, and usage/cost if the user needs the final artifact or an audit.
