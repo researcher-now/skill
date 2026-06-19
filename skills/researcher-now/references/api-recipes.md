@@ -129,6 +129,75 @@ curl -fsS -X DELETE "$RESEARCHER_BASE_URL/v1/webhooks/$WEBHOOK_ID" -H "$RESEARCH
 
 `run.complete` subscriptions receive terminal deliveries for succeeded, failed, and cancelled runs. The `x-researcher-event` header and payload event identify the actual terminal event, such as `run.succeeded` or `run.failed`. When a secret is configured, verify `x-researcher-signature`: `sha256=` plus HMAC-SHA256 of the raw JSON body.
 
+## Agent Inbox
+
+Every terminal run on the account lands in the agent inbox as a pending export — including runs started on the researcher.now web app, the API, or Discord. No registration required. Drain it at session start:
+
+```bash
+curl -fsS "$RESEARCHER_BASE_URL/v1/exports/pending?limit=20" -H "$RESEARCHER_AUTH_HEADER"
+```
+
+Surface each run's `urls.watch` link to the user, then acknowledge what you consumed so it stops appearing as pending:
+
+```bash
+curl -fsS -X POST "$RESEARCHER_BASE_URL/v1/exports/ack" \
+  -H "$RESEARCHER_AUTH_HEADER" \
+  -H "Content-Type: application/json" \
+  -d '{"ids": ["EXPORT_ID"]}'
+```
+
+Acknowledging is per-account: any agent on the account drains the same inbox. Full results stay available through the normal run endpoints after acknowledging.
+
+## Standing Topics
+
+Create a standing research topic when the user wants ongoing coverage of a subject instead of a one-off report. `prompt` is required — state the subject plus the user's stake in it. Seeds become standing watch targets (X accounts, GitHub profiles, RSS feeds, websites) plus an automatic wide-search lane; creating a topic fires a bootstrap deep-research run automatically:
+
+```bash
+curl -fsS -X POST "$RESEARCHER_BASE_URL/v1/topics" \
+  -H "$RESEARCHER_AUTH_HEADER" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Solid-state battery commercialization timelines. I advise an industrial client deciding when to commit a pack redesign; I care about manufacturing milestones, not lab records.",
+    "title": "Solid-state batteries",
+    "seeds": {
+      "xAccounts": ["batteryresearcher"],
+      "githubProfiles": ["batterylab"],
+      "feeds": ["https://example.com/battery-news.xml"],
+      "domains": ["batteryreports.example.com"]
+    },
+    "cadence": "daily",
+    "monthlyBudgetUsd": 50
+  }'
+```
+
+`title`, `seeds`, `cadence` (`realtime` | `hourly` | `daily` | `weekly`, default `daily`; `realtime` scans roughly every 10 minutes), and `monthlyBudgetUsd` are optional. `seeds.xAccounts` accepts up to 1,000 handles — paste a whole list; large lists are scanned in batches. `seeds.githubProfiles` takes up to 100 GitHub usernames (strip any `@` or `github.com/` prefix), watched via the public events API for releases, new repos, pushes, and opened pull requests; they appear on `GET /v1/topics/:id` as watch targets with kind `github`. The topic starts as `bootstrapping`, becomes `active` once the bootstrap run completes, or `bootstrap_failed` if the bootstrap run could not start — check `topic.status` on the 201 response. Scanning is independent of that lifecycle: the topic scans on its cadence (appending `scan_digest` events) from creation, including while bootstrapping, and stops only when paused or archived.
+
+List topics and read one topic with its recent events (including `scan_digest` items), watch targets, and docs:
+
+```bash
+curl -fsS "$RESEARCHER_BASE_URL/v1/topics" -H "$RESEARCHER_AUTH_HEADER"
+curl -fsS "$RESEARCHER_BASE_URL/v1/topics/$TOPIC_ID" -H "$RESEARCHER_AUTH_HEADER"
+```
+
+Every topic object carries a `slug` (a URL-friendly form of its title, unique within your account). `GET /v1/topics/:idOrSlug` accepts either the slug or the uuid, so `/v1/topics/ai-leaders` and `/v1/topics/$TOPIC_ID` resolve the same topic.
+
+Rename a topic with `PATCH /v1/topics/:id` — this regenerates the slug and appends a `title_updated` event:
+
+```bash
+curl -fsS -X PATCH "$RESEARCHER_BASE_URL/v1/topics/$TOPIC_ID" \
+  -H "$RESEARCHER_AUTH_HEADER" -H "Content-Type: application/json" \
+  -d '{"title": "AI Leaders"}'
+```
+
+The response is `{ "topic": { ... } }` with the new `title` and `slug`.
+
+The detail response includes `docs` — two versioned markdown documents, each `{ "version": 1, "contentMarkdown": "...", "summary": "...", "createdAt": "..." }` or `null` before seeding:
+
+- `docs.thesis` — stable top-level beliefs seeded from the bootstrap research run: numbered claims with confidence and falsification conditions. Never auto-edited; synthesis only flags tensions against it.
+- `docs.working` — the living idea layer: new scan items are continuously synthesized into it under pressure triggers (enough new items, staleness, first items after seeding), not on a fixed clock. Each reorganization appends a new version.
+
+Doc updates show up in the topic's events as `docs_seeded` (both docs seeded from the bootstrap report) and `doc_synthesized` (each working-doc reorganization; its `message` is the what-changed summary and its `metadata.tensions` flags thesis claims under pressure, referencing claim ids). Errors surface as `docs_seed_failed` and `doc_synthesis_failed`; `docs_seed_skipped` means seeding was skipped (for example, no bootstrap report markdown was found).
+
 ## Chat With A Run
 
 ```bash
