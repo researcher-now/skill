@@ -39,10 +39,16 @@ mppx https://researcher.now/v1/runs -J '{"source":{"type":"topic","topic":"…"}
 
 Point any x402-capable MCP client at `https://researcher.now/mcp` with your wallet.
 The handshake needs no auth; paid tools (`deep_research`, `analyze_article`,
-`analyze_video`, `ask_persona`) answer `402` with an MPP session challenge the
+`analyze_video`, `ask_persona`, `ask_corpus`) answer `402` with an MPP session challenge the
 client authorizes from the wallet, then provisions an account and returns the key
 in `X-Researcher-Agent-Key`. Free tools (`list_personas`, `recall_research`, …)
 need no payment.
+
+First corpus ask:
+
+```json
+{"tool":"ask_corpus","arguments":{"corpus":"paul-graham","question":"How should I pick startup ideas?","depth":"quick"}}
+```
 
 ## Already have a key (or a human can make one)
 
